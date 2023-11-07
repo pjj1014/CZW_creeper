@@ -1,0 +1,255 @@
+import difflib
+import time
+
+import pandas as pd
+import win32com.client
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+
+# 滑块
+driver = webdriver.Chrome()
+# 修改一些浏览器部分属性，绕过检测
+driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument",
+                       {"source": """Object.defineProperty(navigator, 'webdriver', {get: () => false})"""})
+driver.get("https://search.bidcenter.com.cn/search?keywords={0}".format("档案"))
+
+
+# time.sleep(random.randint(1, 3))
+# button = driver.find_element(By.XPATH, '//*[@id="nc_1_n1z"]')  # 找到滑块
+# ActionChains(driver).drag_and_drop_by_offset(button,259, 0).perform()  # 滑动到位置 298,0 坐标(x,y)
+
+# searchKeyword='扫描'
+# beg='2020-10-15'
+# end='2022-05-12'
+# url = "https://search.bidcenter.com.cn/search?keywords={0}".format(searchKeyword)
+#
+# url+='&time={0}&stime={1}&endtime={2}'.format(5,beg,end)
+
+# print(round(difflib.SequenceMatcher(None, "湿地保护与恢复建设工程", "四川省若尔盖国际重要湿地保护与恢复建设工程第1标段").quick_ratio(),2))
+
+def duplicateChecking(i, j):
+    return round(difflib.SequenceMatcher(None, i, j).quick_ratio(), 2)
+
+
+global genre, title, releaseTime, link, area, hy, gjc, budget, p_method, deadTime
+j = 0
+# 数据存储
+list_data = []
+repetition_listData = []
+# 清理关键词
+ql_list = ["单一", "租赁", "装修", "装饰", "土地", "档案袋", "档案柜", "密集架", "密集柜", "整理箱", "大数据", "维修", "设计", "总承包", "公路",
+           "电梯", "办公设", "监理", "楼宇", "办公家", "档案密", "弱电", "搬迁", "耗材", "打印机", " 计算机", "显示屏", "修缮", "物业", "保洁",
+           "配电", "多普勒", "X射线", "水泵", "考试", "热控", "机械", "城管", "档案盒", "造船", "耕地", "接种", "快递", "船舶", "食堂", "供电",
+           "消防", "空调", "X线", "彩超", "房租", "污水", "印刷", "电子化公开招标", "电子化招标", "电子化政府采购", "教学数字化", "数字化平台", "公众号运维 ",
+           "三维数字化", "数字化教学", "支付电子化", "监测站运维"]
+
+# 筛选关键词
+gjc_dict = {"运维服务": "运维服务", "病案": "病案", "容灾": "容灾", "录入": "录入", "扫描": "扫描加工", "采集终端": "采集终端", "超融合": "超融合",
+            "虚拟化": "虚拟化", "整理": "整理", "数字化": "数字化", "电子化": "电子化", "分布式存储": "分布式存储 ", "档案": "档案",
+            "VMwareCommVault": "VMwareCommVault", "虚拟桌面": "虚拟桌面", "流程自动化": "流程自动化", "随案生成": "随案生成",
+            "磁带库": "磁带库"}
+# 筛选行业
+hy_dict = {"公积金": "公积金", "税务": "税务", "民政": "民政", "档案馆": "档案馆", "档案局": "档案局", "医院": "医院", "人社": "人社",
+           "人力资源和社会保障局": "人力资源和社会保障局", "法院": "法院", "检察院": "检察院", "公安": "公安", "市场监督管理": "市场监督管理", "学校": "学校",
+           "学院": "学院", "交通": "交通", "烟草": "烟草"}
+
+divs = driver.find_elements(By.XPATH, '//div[@id="searchListArea"]/div[@class="ssjg-list_cell"]')
+for div in divs:
+
+    try:
+        # 类型
+        genre = div.find_element(By.XPATH,
+                                 './div[@class="ssjg-list_body fl"]/div[@class="ssjg-list_bt"]/span['
+                                 '@class="ssjg-leixing"]').text
+        # 标题
+        title = div.find_element(By.XPATH,
+                                 './div[@class="ssjg-list_body fl"]/div[@class="ssjg-list_bt"]/a['
+                                 '@class="ssjg-title add_kwd_cookie"]').get_attribute('title')
+
+        # 清理词
+        for key in ql_list:
+            if title.find(key) != -1:
+                break
+        # 关键词
+        gjc = ""
+        for key in gjc_dict:
+            if title.find(key) != -1:
+                gjc = gjc_dict[key]
+                break
+            else:
+                gjc = "其他"
+        # 行业
+        hy = ""
+        for key in hy_dict:
+            if title.find(key) != -1:
+                hy = hy_dict[key]
+                break
+            else:
+                hy = "其他"
+
+        # 采购预算
+        purchaseBudget = div.find_element(By.XPATH,
+                                          '//span[@class="ssjg-list_text caigouyusuan todetail"]').text
+        # 采购预算金额
+        budget = div.find_element(By.XPATH,
+                                  '//span[@class="ssjg-list_text caigouyusuan todetail"]/i[@class="yusuan"]').text
+        # 采购方式
+        procurementMethod = div.find_element(By.XPATH,
+                                             '//span[@class="ssjg-list_text caigoufangshi todetail"]').text
+        # 方式
+        p_method = div.find_element(By.XPATH,
+                                    '//span[@class="ssjg-list_text caigoufangshi todetail"]/i[@class="fangshi"]').text
+        # 截止时间
+        deadline = div.find_element(By.XPATH, '//span[@class="ssjg-list_text jiezhishijian"]').text
+        # 时间
+        deadTime = div.find_element(By.XPATH,
+                                    '//span[@class="ssjg-list_text jiezhishijian"]/i[@class="jiezhi"]').text
+        # 地区
+        area = div.find_element(By.XPATH, '//span[@class="diqu"]').text
+        # 发布时间
+        releaseTime = div.find_element(By.XPATH, '//span[@class="ssjg-shijian fr"]').text
+        # 链接
+        link = div.find_element(By.XPATH,
+                                './div[@class="ssjg-list_body fl"]/div[@class="ssjg-list_bt"]/a['
+                                '@class="ssjg-title add_kwd_cookie"]').get_attribute('href')
+        j += 1
+        print("第{0}条信息抓取成功".format(j))
+    except:
+        print("第{0}条信息抓取失败".format(j))
+
+    data = {"genre": genre, "title": title, "area": area, "releaseTime": releaseTime, "link": link, "gjc": gjc,
+            "hy": hy, "budget": budget, "p_method": p_method, "deadTime": deadTime}
+    # 把处理好的数据放入
+    list_data.append(data)
+for i in list_data:
+    for j in list_data:
+        if i['title'] != j['title']:
+            if duplicateChecking(i['title'], j['title']) >= 0.65:
+                repetition_listData.append(j)
+                list_data.remove(j)
+
+# 清理或保留
+for i in list_data:
+    for key in ql_list:
+        # 清理关键词
+        if i['title'].find(key) != -1:
+            repetition_listData.append(i)
+            list_data.remove(i)
+
+savePath = r"D:\Python\CreeperPlan\app\数据存储\采招网{0}.xlsx".format(
+    time.strftime('%Y%m%d_%H%M', time.localtime(time.time())))
+
+# 开始创建excel表
+writer = pd.ExcelWriter(savePath, engine='xlsxwriter')
+data = pd.DataFrame(list_data)
+data.rename(
+    columns={"genre": "类型", "title": "标题", "area": "地区", "releaseTime": "发布日期", "link": "链接", "gjc": "关键词", "hy": "行业",
+             "budget": "采购预算", "p_method": "采购方式", "deadTime": "截止时间"}, inplace=True)
+result = data.pivot_table(index=['行业', '关键词', '地区', '标题'])
+data.to_excel(writer, sheet_name='明细', index=False)
+result.to_excel(writer, sheet_name='分类', header=None)
+repetition_data = pd.DataFrame(repetition_listData)
+repetition_data.to_excel(writer, sheet_name='重复', index=False)
+# 样式
+headStyle = {
+    'bold': True,  # 粗体
+    'align': 'center',  # 水平居中
+    'valign': 'vcenter',  # 垂直居中
+    'bg_color': '#c3ccd5',  # 背景颜色
+    'border': True,
+}
+# 明细表样式
+workBook = writer.book
+sheet_detail = writer.sheets['明细']
+sheet_detail.set_column('A:A', 15)
+sheet_detail.set_column('B:B', 100)
+sheet_detail.set_column('C:C', 10)
+sheet_detail.set_column('D:D', 15)
+sheet_detail.set_column('E:E', 45)
+sheet_detail.set_column('F:F', 10)
+sheet_detail.set_column('G:G', 15)
+sheet_detail.set_column('H:H', 15)
+sheet_detail.set_column('I:I', 15)
+sheet_detail.set_column('J:J', 15)
+head = ["类型", "标题", "地区", "发布日期", "链接", "关键词", "行业", "采购预算", "采购方式", "截止时间"]
+sheet_detail.write_row('A1', head, workBook.add_format(headStyle))
+sheet_detail.autofilter('A1:J1')
+# 重复表样式
+sheet_repetition = writer.sheets['重复']
+sheet_repetition.set_column('A:A', 15)
+sheet_repetition.set_column('B:B', 100)
+sheet_repetition.set_column('C:C', 10)
+sheet_repetition.set_column('D:D', 15)
+sheet_repetition.set_column('E:E', 45)
+sheet_repetition.set_column('F:F', 10)
+sheet_repetition.set_column('G:G', 15)
+sheet_repetition.set_column('H:H', 15)
+sheet_repetition.set_column('I:I', 15)
+sheet_repetition.set_column('J:J', 15)
+head = ["类型", "标题", "地区", "发布日期", "链接", "关键词", "行业", "采购预算", "采购方式", "截止时间"]
+sheet_repetition.write_row('A1', head, workBook.add_format(headStyle))
+sheet_repetition.autofilter('A1:J1')
+# 分类表样式
+sheet_classify = writer.sheets['分类']
+sheet_classify.set_column('A:A', 15)
+sheet_classify.set_column('B:B', 15)
+sheet_classify.set_column('C:C', 15)
+sheet_classify.set_column('D:D', 120)
+head = ["行业", "关键词", "地区", "标题"]
+sheet_classify.write_row('A1', head, workBook.add_format(headStyle))
+# excel表保存关闭
+writer.save()
+writer.close()
+
+# 数据透视表
+Excel = win32com.client.gencache.EnsureDispatch('Excel.Application')
+win32c = win32com.client.constants
+wb = Excel.Workbooks.Open(savePath)
+# 明细数据
+detail_table = wb.Worksheets('明细')
+detail_rowsMax = detail_table.UsedRange.Rows.Count
+detail_colMax = detail_table.UsedRange.Columns.Count
+detail_rcFirst = detail_table.Cells(1, 1)
+detail_rcLast = detail_table.Cells(detail_rowsMax, detail_colMax)
+detail_PivotSourceRange = detail_table.Range(detail_rcFirst, detail_rcLast)
+# 数据透视表
+classify_table = wb.Worksheets.Add()
+classify_table.Name = '数据透视表'
+classif_rcFirst = classify_table.Cells(1, 1)
+classify_PivotTargetRange = classify_table.Range(classif_rcFirst, classif_rcFirst)
+classify_PivotTableName = '数据透视表'
+
+classify_PivotCache = wb.PivotCaches().Create(SourceType=win32c.xlDatabase,
+                                              SourceData=detail_PivotSourceRange,
+                                              Version=win32c.xlPivotTableVersion14)
+
+classify_PivotTable = classify_PivotCache.CreatePivotTable(TableDestination=classify_PivotTargetRange,
+                                                           TableName=classify_PivotTableName,
+                                                           DefaultVersion=win32c.xlPivotTableVersion14)
+
+classify_PivotTable.RowAxisLayout(win32c.xlOutlineRow)
+classify_PivotTable.PivotFields('行业').Orientation = win32c.xlRowField
+# 按数排序
+classify_PivotTable.PivotFields('行业').Position = 1
+# 设置单元格宽度
+classify_PivotTable.PivotFields('行业').DataRange.ColumnWidth = 10
+classify_PivotTable.PivotFields('关键词').Orientation = win32c.xlRowField
+classify_PivotTable.PivotFields('关键词').Position = 2
+classify_PivotTable.PivotFields('地区').Orientation = win32c.xlRowField
+classify_PivotTable.PivotFields('地区').Position = 3
+classify_PivotTable.PivotFields('标题').Orientation = win32c.xlRowField
+classify_PivotTable.PivotFields('标题').Position = 4
+classify_PivotTable.PivotFields('标题').DataRange.ColumnWidth = 200
+# 读取有多少个关键词
+gjc_Counts = classify_PivotTable.PivotFields('行业').DataRange.Columns
+endPosition = 0
+for dd in gjc_Counts.Value:
+    if dd[0] is not None:
+        endPosition += 1
+# 将"其他"移到未尾
+classify_PivotTable.PivotFields('行业').PivotItems("其他").Position = endPosition
+print("创建数据透视表完毕！")
+# 保存excel
+wb.Save()
+# 关闭excel
+Excel.Application.Quit()
